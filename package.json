@@ -1,0 +1,18 @@
+{
+  "name": "whackbeanz-extension",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "devDependencies": {
+    "autoprefixer": "^10.4.21",
+    "postcss": "^8.5.3",
+    "tailwindcss": "^4.0.14"
+  },
+  "scripts": {
+    "tw:init": "tailwindcss init",
+    "tw:build": "tailwindcss -i ./src/input.css -o ./tailwind.css --minify"
+  },
+  "dependencies": {
+    "@tailwindcss/cli": "^4.0.14"
+  }
+}
