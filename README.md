@@ -40,7 +40,7 @@ This extension works on both **Chrome** and **Firefox** and is intended for **ma
 ### Firefox Installation
 1. Go to `about:debugging`
 2. Click "This Firefox" → "Load Temporary Add-on"
-3. Select any file in this folder (e.g., `manifest.json`)
+3. Select any file in this folder (e.g., `manifest-firefox.json`)
 
 **📖 For detailed cross-browser installation and build instructions, see [BUILD.md](BUILD.md)**
 

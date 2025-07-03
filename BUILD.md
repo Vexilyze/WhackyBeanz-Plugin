@@ -87,8 +87,6 @@ WhackyBeanz-Extension/
 ├── contentScript.js           # Main functionality
 ├── popup.html                 # Extension popup UI
 ├── popup.js                   # Popup functionality
-├── options.html               # Options page
-├── options.js                 # Options functionality
 ├── tailwind.css              # Styling
 ├── icons/                    # Extension icons
 │   ├── icon16.png
