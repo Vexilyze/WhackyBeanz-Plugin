@@ -103,6 +103,7 @@ function initExtension() {
                             if (isFlamesPage) {
                                 setTimeout(() => {
                                     initExpandFlamesTable();
+                                    setupFlameScoreObserver();
                                 }, 100);
                             }
                         }, 1500);
@@ -807,6 +808,39 @@ function injectFlameSolver(retryCount = 0) {
                             class="cursor-pointer h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                         />
                         <span class="select-none text-gray-700 dark:text-gray-300">Expand Flames Table</span>
+                        <div class="relative group ml-1">
+                            <svg class="w-3 h-3 text-gray-400 cursor-help" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd"></path>
+                            </svg>
+                            <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 text-xs text-white bg-gray-900 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+                                Expands the flame probability table height for easier viewing
+                                <div class="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
+                            </div>
+                        </div>
+                    </label>
+                </div>
+
+                <!-- Show Flame Scores Option -->
+                <div class="flex items-center ml-4">
+                    <label
+                        for="whackybeanz-showFlameScoresCheck"
+                        class="inline-flex items-center gap-2 cursor-pointer bg-slate-50 dark:bg-zinc-800 rounded-lg px-3 py-2 hover:bg-slate-100 dark:hover:bg-zinc-700 transition-all duration-200 text-sm"
+                    >
+                        <input
+                            type="checkbox"
+                            id="whackybeanz-showFlameScoresCheck"
+                            class="cursor-pointer h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                        />
+                        <span class="select-none text-gray-700 dark:text-gray-300">Show Flame Scores</span>
+                        <div class="relative group ml-1">
+                            <svg class="w-3 h-3 text-gray-400 cursor-help" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd"></path>
+                            </svg>
+                            <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 text-xs text-white bg-gray-900 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+                                Shows the flame score above the item in step 6
+                                <div class="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
+                            </div>
+                        </div>
                     </label>
                 </div>
             </div>
@@ -971,6 +1005,9 @@ function injectFlameSolver(retryCount = 0) {
 
         // Initialize flame solver events
         initFlameSolverEvents();
+        
+        // Initialize flame scores checkbox (now part of flame solver)
+        initShowFlameScores();
 
     } catch (error) {
         console.error('[WhackyBeanz Extension] Error injecting flame solver:', error);
@@ -1331,6 +1368,9 @@ class ExtensionCharacterManager {
             // Show a subtle notification
             const actionType = buttonText.startsWith('Save to ') ? 'equipment' : 'stat equivalence';
             this.showStatus(`Auto-saved ${actionType} data to "${this.characters[characterIndex].name}"`, 'success');
+            
+            // Refresh flame scores if needed
+            refreshFlameScoresAfterCharacterChange();
         } catch (error) {
             console.error('[WhackyBeanz Extension] Error in auto-update:', error);
             this.showStatus('Error auto-saving character data', 'error');
@@ -1563,6 +1603,9 @@ class ExtensionCharacterManager {
         
         this.nameInput.value = '';
         this.showStatus(`Character "${name}" saved successfully!`, 'success');
+        
+        // Refresh flame scores if needed
+        refreshFlameScoresAfterCharacterChange();
     }
 
     async loadCharacter() {
@@ -1620,6 +1663,9 @@ class ExtensionCharacterManager {
         this.populateDropdown();
         
         this.showStatus(`Character "${this.characters[characterIndex].name}" updated successfully!`, 'success');
+        
+        // Refresh flame scores if needed
+        refreshFlameScoresAfterCharacterChange();
     }
 
     showDeleteConfirmation() {
@@ -1908,6 +1954,7 @@ function setupPluginSettingsEventListeners() {
             const data = {
                 characters: storageData['whackybeanz-characters'] || [],
                 expandFlames: localStorage.getItem('whackybeanz-expand-flames') === 'true',
+                showFlameScores: localStorage.getItem('whackybeanz-show-flame-scores') === 'true',
                 lastLoadedChar: currentCharId
             };
 
@@ -2023,6 +2070,18 @@ function setupPluginSettingsEventListeners() {
                     }
                 }
 
+                // Import show flame scores setting
+                const showFlameScoresSetting = data.showFlameScores;
+                if (typeof showFlameScoresSetting === 'boolean') {
+                    localStorage.setItem('whackybeanz-show-flame-scores', showFlameScoresSetting.toString());
+                    const checkbox = document.getElementById('whackybeanz-showFlameScoresCheck');
+                    if (checkbox) {
+                        checkbox.checked = showFlameScoresSetting;
+                        // Trigger change event to apply the setting
+                        checkbox.dispatchEvent(new Event('change'));
+                    }
+                }
+
                 // Show success message
                 const successMsg = document.getElementById('whackybeanz-import-success-msg');
                 successMsg?.classList.remove('hidden');
@@ -2070,3 +2129,602 @@ function initExpandFlamesTable() {
         toggleFlamesHeight(isExpanded);
     });
 }
+
+/**
+ * Initialize Show Flame Scores functionality
+ */
+function initShowFlameScores() {
+    // Use a small delay to ensure the checkbox is in the DOM
+    setTimeout(() => {
+        const checkbox = document.getElementById('whackybeanz-showFlameScoresCheck');
+        if (!checkbox) {
+            console.warn('[WhackyBeanz Extension] Flame scores checkbox not found');
+            return;
+        }
+
+        // Load saved state
+        const savedState = localStorage.getItem('whackybeanz-show-flame-scores') === 'true';
+        checkbox.checked = savedState;
+        
+        // Apply initial state
+        if (savedState) {
+            initFlameScoreDisplay();
+        } else {
+            // Make sure spacing is removed if checkbox is initially unchecked
+            applyFlameScoreSpacing(false);
+        }
+
+        // Add event listener
+        checkbox.addEventListener('change', (e) => {
+            const isEnabled = e.target.checked;
+            localStorage.setItem('whackybeanz-show-flame-scores', isEnabled.toString());
+            
+            if (isEnabled) {
+                initFlameScoreDisplay();
+            } else {
+                clearFlameScores();
+                applyFlameScoreSpacing(false);
+            }
+        });
+    }, 100);
+}
+
+/**
+ * Initialize flame score display
+ */
+function initFlameScoreDisplay() {    
+    // Wait for flame table data to load
+    waitForFlameTableData(() => {
+        displayFlameScores().then(() => {
+            // Apply spacing after scores are displayed
+            applyFlameScoreSpacing(true);
+        });
+    });
+}
+
+/**
+ * Wait for flame table data to load
+ */
+function waitForFlameTableData(callback) {
+    let attempts = 0;
+    const maxAttempts = 60; // Increased to 30 seconds total
+    const checkInterval = 500;
+
+    function checkForData() {
+        attempts++;
+        
+        // Check if flame table container exists and has items
+        const flameTableContainer = document.querySelector('div.flex.flex-wrap.justify-center.sm\\:justify-start.gap-y-4.sm\\:px-4.md\\:px-8');
+        const itemsCount = flameTableContainer ? flameTableContainer.querySelectorAll('img[src*="images/equips/"]').length : 0;
+        const hasItems = itemsCount > 0;
+                
+        if (hasItems) {
+            // Wait a bit longer to ensure all items are fully loaded
+            setTimeout(() => {
+                // Check again to make sure items are still there and stable
+                const finalContainer = document.querySelector('div.flex.flex-wrap.justify-center.sm\\:justify-start.gap-y-4.sm\\:px-4.md\\:px-8');
+                const finalItemsCount = finalContainer ? finalContainer.querySelectorAll('img[src*="images/equips/"]').length : 0;
+                
+                if (finalItemsCount > 0) {
+                    callback();
+                } else {
+                    if (attempts < maxAttempts) {
+                        setTimeout(checkForData, checkInterval);
+                    } else {
+                        console.warn('[WhackyBeanz Extension] Timeout waiting for flame table data');
+                    }
+                }
+            }, 1000); // Wait 1 second for stability
+        } else if (attempts < maxAttempts) {
+            setTimeout(checkForData, checkInterval);
+        } else {
+            console.warn('[WhackyBeanz Extension] Timeout waiting for flame table data');
+        }
+    }
+
+    checkForData();
+}
+
+/**
+ * Display flame scores in the flame table
+ */
+async function displayFlameScores() {
+    try {     
+        // Get current character data
+        const characterData = await getCurrentCharacterData();
+        if (!characterData) {
+            console.warn('[WhackyBeanz Extension] No character data available for flame scores');
+            return;
+        }
+
+        const { statEquiv, jobType, flameSetup } = characterData;
+        if (!statEquiv || !jobType || !flameSetup) {
+            console.warn('[WhackyBeanz Extension] Missing required data for flame scores', { statEquiv: !!statEquiv, jobType: !!jobType, flameSetup: !!flameSetup });
+            return;
+        }
+
+        // Parse flame table items
+        const flameTableItems = parseFlameTableItems();
+        
+        // Calculate and display scores for each item
+        let scoresDisplayed = 0;
+        let showSaveStep4Error = false;
+        flameTableItems.forEach(item => {
+            const flameScore = calculateFlameScore(item.itemName, statEquiv, jobType, flameSetup);
+            if (flameScore === 'SAVE_STEP_4') {
+                showSaveStep4Error = true;
+            } else if (flameScore !== null) {
+                displayFlameScoreOnItem(item.element, flameScore);
+                scoresDisplayed++;
+            } else {
+                console.log(`[WhackyBeanz Extension] No flame data found for ${item.itemName}`);
+            }
+        });
+
+        // Show error if statEquiv is missing
+        if (showSaveStep4Error) {
+            showFlameScoreError('Please save your character data in step 4 (Stat Equivalence) to display the flame scores of your items.');
+            return;
+        }        
+    } catch (error) {
+        console.error('[WhackyBeanz Extension] Error displaying flame scores:', error);
+    }
+}
+
+/**
+ * Get current character data
+ */
+async function getCurrentCharacterData() {
+    try {
+        const characterManager = window.extensionCharacterManager;
+        if (!characterManager || !characterManager.currentCharacterId) {
+            return null;
+        }
+
+        const character = characterManager.characters.find(c => c.id === characterManager.currentCharacterId);
+        if (!character || !character.data) {
+            return null;
+        }
+
+        // Parse character data from localStorage format
+        const characterData = {};
+        
+        // Get statEquiv
+        const statEquivStr = character.data['statEquiv'];
+        if (statEquivStr) {
+            try {
+                characterData.statEquiv = JSON.parse(statEquivStr);
+            } catch (e) {
+                console.warn('[WhackyBeanz Extension] Could not parse statEquiv:', e);
+            }
+        }
+
+        // Get jobType
+        characterData.jobType = character.data['jobType'];
+
+        // Get flameSetup
+        const flameSetupStr = character.data['flameSetup'];
+        if (flameSetupStr) {
+            try {
+                characterData.flameSetup = JSON.parse(flameSetupStr);
+            } catch (e) {
+                console.warn('[WhackyBeanz Extension] Could not parse flameSetup:', e);
+            }
+        }
+
+        return characterData;
+    } catch (error) {
+        console.error('[WhackyBeanz Extension] Error getting character data:', error);
+        return null;
+    }
+}
+
+/**
+ * Parse flame table items
+ */
+function parseFlameTableItems() {
+    const items = [];
+    const flameTableContainer = document.querySelector('div.flex.flex-wrap.justify-center.sm\\:justify-start.gap-y-4.sm\\:px-4.md\\:px-8');
+    
+    if (!flameTableContainer) {
+        console.warn('[WhackyBeanz Extension] Flame table container not found');
+        return items;
+    }
+
+    const itemElements = flameTableContainer.querySelectorAll('img[src*="images/equips/"]');
+    
+    itemElements.forEach((img, index) => {
+        const src = img.src;
+        const match = src.match(/images\/equips\/[^/]+\/(.+)\.png/);
+        if (match) {
+            const itemName = match[1];
+            // Update selector to match the actual DOM structure
+            const element = img.closest('div.h-10.flex.justify-center.items-center') || img.closest('div.flex.items-center');
+            
+            items.push({
+                itemName: itemName,
+                element: element
+            });
+        }
+    });
+
+    return items;
+}
+
+/**
+ * Calculate flame score for an item
+ */
+function calculateFlameScore(itemName, statEquiv, jobType, flameSetup) {
+    try {
+        let itemFlameData = flameSetup[itemName];
+        
+        // If exact match not found and item contains "glove", search for any glove item in character data
+        if ((!itemFlameData || !Array.isArray(itemFlameData)) && itemName.toLowerCase().includes('glove')) {            
+            // Search for any item in flameSetup that contains "glove"
+            for (const [key, value] of Object.entries(flameSetup)) {
+                if (key.toLowerCase().includes('glove') && Array.isArray(value)) {
+                    itemFlameData = value;
+                    break;
+                }
+            }
+        }
+        
+        if (!itemFlameData || !Array.isArray(itemFlameData)) {
+            return null;
+        }
+
+        // Validate statEquiv
+        if (!statEquiv || typeof statEquiv !== 'object') {
+            console.warn('[WhackyBeanz Extension] statEquiv is empty or invalid - user needs to save step 4');
+            return 'SAVE_STEP_4';
+        }
+
+        const { priStat, secStat, values } = statEquiv;
+        if (!priStat || !secStat || !values || !Array.isArray(priStat) || !Array.isArray(secStat)) {
+            console.warn('[WhackyBeanz Extension] statEquiv structure is invalid - user needs to save step 4');
+            return 'SAVE_STEP_4';
+        }
+
+        const primaryStat = priStat[0]; // Get first primary stat
+        const secondaryStat = secStat[0]; // Get first secondary stat
+        
+        let totalScore = 0;
+        
+        // Process each flame line
+        itemFlameData.forEach(flameLine => {
+            const { id, value, mixedStats } = flameLine;
+            
+            if (mixedStats && Array.isArray(mixedStats)) {
+                // Handle mixed stats (e.g., "dexLuk")
+                mixedStats.forEach(stat => {
+                    if (stat === primaryStat) {
+                        totalScore += value; // Primary stat worth 1
+                    } else if (stat === secondaryStat) {
+                        totalScore += value * (values.sec || 0);
+                    }
+                });
+            } else {
+                // Handle single stats
+                if (id === primaryStat) {
+                    totalScore += value; // Primary stat worth 1
+                } else if (id === secondaryStat) {
+                    totalScore += value * (values.sec || 0);
+                } else if (id === 'allStatsPercent') {
+                    totalScore += value * (values.allStats || 0);
+                } else if (id === 'armorAtt' || id === 'weaponAtt') {
+                    if (jobType !== 'magician') {
+                        totalScore += value * (values.att || 0);
+                    }
+                } else if (id === 'armorMatt' || id === 'weaponMatt') {
+                    if (jobType === 'magician') {
+                        totalScore += value * (values.att || 0);
+                    }
+                } else if (id === 'bossPercent' || id === 'damagePercent') {
+                    totalScore += value * (values.boss || 0);
+                }
+            }
+        });
+
+        return totalScore;
+    } catch (error) {
+        console.error('[WhackyBeanz Extension] Error calculating flame score:', error);
+        return null;
+    }
+}
+
+/**
+ * Display flame score on item
+ */
+function displayFlameScoreOnItem(itemElement, flameScore) {
+    if (!itemElement) {
+        console.warn('[WhackyBeanz Extension] No item element provided to displayFlameScoreOnItem');
+        return;
+    }
+
+    // Remove existing score if present
+    const existingScore = itemElement.querySelector('.whackybeanz-flame-score');
+    if (existingScore) {
+        existingScore.remove();
+    }
+
+
+    // Find an existing text-sm element to copy its styling
+    const flameTableContainer = document.querySelector('div.flex.flex-wrap.justify-center.sm\\:justify-start.gap-y-4.sm\\:px-4.md\\:px-8');
+    let referenceTextElement = null;
+    
+    if (flameTableContainer) {
+        // Look for elements with text-sm class
+        referenceTextElement = flameTableContainer.querySelector('.text-sm');
+        
+        // If no text-sm found, look for any element with percentage text
+        if (!referenceTextElement) {
+            const textElements = flameTableContainer.querySelectorAll('*');
+            for (let element of textElements) {
+                if (element.textContent && element.textContent.includes('%') && element.textContent.trim().match(/^\d+\.?\d*%$/)) {
+                    referenceTextElement = element;
+                    break;
+                }
+            }
+        }
+    }
+
+    // Make sure the item element has relative positioning for absolute positioning of the score
+    itemElement.style.position = 'relative';
+
+    // Create flame score element positioned above the image
+    const scoreElement = document.createElement('div');
+    scoreElement.className = 'whackybeanz-flame-score';
+    
+    // Position above the image (outside its boundaries)
+    scoreElement.style.position = 'absolute';
+    scoreElement.style.top = '-20px'; // Above the image
+    scoreElement.style.left = '50%';
+    scoreElement.style.transform = 'translateX(-50%)';
+    scoreElement.style.textAlign = 'center';
+    scoreElement.style.zIndex = '10';
+    scoreElement.style.whiteSpace = 'nowrap';
+    scoreElement.style.pointerEvents = 'none';
+    
+    if (referenceTextElement) {
+        // Copy the exact computed styles from the reference text-sm element
+        const computedStyle = window.getComputedStyle(referenceTextElement);
+        scoreElement.style.fontSize = computedStyle.fontSize;
+        scoreElement.style.fontFamily = computedStyle.fontFamily;
+        scoreElement.style.fontWeight = computedStyle.fontWeight;
+        scoreElement.style.color = computedStyle.color;
+        scoreElement.style.lineHeight = computedStyle.lineHeight;
+    } else {
+        // Fallback to text-sm equivalent styling
+        scoreElement.className = 'whackybeanz-flame-score text-sm text-gray-700 dark:text-gray-300';
+        scoreElement.style.fontSize = '0.875rem'; // text-sm equivalent
+    }
+    
+    scoreElement.textContent = flameScore.toFixed(1);
+
+    // Add score element above the item element
+    itemElement.appendChild(scoreElement);
+}
+
+/**
+ * Clear all flame scores
+ */
+function clearFlameScores() {
+    const flameScores = document.querySelectorAll('.whackybeanz-flame-score');
+    const flameScoreContainers = document.querySelectorAll('.whackybeanz-flame-score-container');
+    const flameScoreErrors = document.querySelectorAll('.whackybeanz-flame-score-error');
+    
+    flameScores.forEach(score => score.remove());
+    flameScoreContainers.forEach(container => container.remove());
+    flameScoreErrors.forEach(error => error.remove());
+}
+
+/**
+ * Show flame score error message
+ */
+function showFlameScoreError(message) {
+    // Clear any existing errors first
+    const existingErrors = document.querySelectorAll('.whackybeanz-flame-score-error');
+    existingErrors.forEach(error => error.remove());
+
+    // Find the flame scores checkbox container
+    const checkbox = document.getElementById('whackybeanz-showFlameScoresCheck');
+    if (!checkbox) return;
+
+    const checkboxContainer = checkbox.closest('div.flex.items-center')?.parentElement;
+    if (!checkboxContainer) return;
+
+    // Create error message
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'whackybeanz-flame-score-error mt-2 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg';
+    errorDiv.innerHTML = `
+        <div class="flex items-center">
+            <svg class="w-4 h-4 text-red-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+            </svg>
+            <span class="text-sm text-red-700 dark:text-red-300">${message}</span>
+        </div>
+    `;
+
+    // Insert after the checkbox container
+    if (checkboxContainer.nextSibling) {
+        checkboxContainer.parentNode.insertBefore(errorDiv, checkboxContainer.nextSibling);
+    } else {
+        checkboxContainer.parentNode.appendChild(errorDiv);
+    }
+}
+
+/**
+ * Refresh flame scores after character save/update
+ */
+async function refreshFlameScoresAfterCharacterChange() {
+    // Only do this on flames page
+    if (!window.location.pathname.includes('/calc/equips/flames')) {
+        return;
+    }
+    
+    const showFlameScores = localStorage.getItem('whackybeanz-show-flame-scores') === 'true';
+    if (!showFlameScores) {
+        return;
+    }
+        
+    // Clear existing scores
+    clearFlameScores();
+    
+    // Add a delay to allow the site to process the character change and start regenerating the flame table
+    setTimeout(() => {      
+        // Wait for flame table to update with new character data - use proper waiting logic
+        waitForFlameTableData(async () => {
+            await displayFlameScores();
+            setTimeout(() => {
+                applyFlameScoreSpacing(true);
+            }, 100);
+        });
+    }, 2000); // Wait 2 seconds before starting to check for flame table data
+}
+
+/**
+ * Apply spacing when flame scores are enabled
+ */
+function applyFlameScoreSpacing(enable) {
+    const flameTableContainer = document.querySelector('div.flex.flex-wrap.justify-center.sm\\:justify-start.gap-y-4.sm\\:px-4.md\\:px-8');
+    
+    if (!flameTableContainer) {
+        return;
+    }
+    
+    if (enable) {
+        // Add top margin to the flame table container
+        flameTableContainer.style.marginTop = '24px';
+        
+        // Detect which items are in the second row and beyond by checking their vertical position
+        const allItems = flameTableContainer.querySelectorAll('div > img[src*="images/equips/"]');
+        
+        if (allItems.length > 0) {
+            // Get the top position of the first item as reference
+            const firstItemRect = allItems[0].getBoundingClientRect();
+            const firstRowTop = firstItemRect.top;
+            
+            allItems.forEach((img, index) => {
+                const itemElement = img.parentElement;
+                if (itemElement) {
+                    const itemRect = img.getBoundingClientRect();
+                    
+                    // If this item is more than 10px below the first row, it's on a subsequent row
+                    if (itemRect.top > firstRowTop + 10) {
+                        itemElement.style.marginTop = '20px';
+                    }
+                }
+            });
+        }
+    } else {
+        // Remove the spacing
+        flameTableContainer.style.marginTop = '';
+        
+        // Remove extra top margin from all items
+        const allItems = flameTableContainer.querySelectorAll('div > img[src*="images/equips/"]');
+        allItems.forEach((img) => {
+            const itemElement = img.parentElement;
+            if (itemElement) {
+                itemElement.style.marginTop = '';
+            }
+        });
+    }
+}
+
+/**
+ * Set up flame score mutation observer
+ */
+function setupFlameScoreObserver() {
+    const flameTableContainer = document.querySelector('div.flex.flex-wrap.justify-center.sm\\:justify-start.gap-y-4.sm\\:px-4.md\\:px-8');
+    
+    if (!flameTableContainer) {
+        // If table doesn't exist yet, wait for it
+        const checkForTable = setInterval(() => {
+            const container = document.querySelector('div.flex.flex-wrap.justify-center.sm\\:justify-start.gap-y-4.sm\\:px-4.md\\:px-8');
+            if (container) {
+                clearInterval(checkForTable);
+                setupFlameScoreObserver();
+            }
+        }, 1000);
+        return;
+    }
+
+    const observer = new MutationObserver((mutations) => {
+        let hasRelevantChanges = false;
+        let hasImages = false;
+        
+        mutations.forEach((mutation) => {
+            if (mutation.type === 'childList') {
+                // Check for added nodes
+                if (mutation.addedNodes.length > 0) {
+                    // Check if the added nodes are NOT our own flame score elements
+                    const isOurFlameScoreChange = Array.from(mutation.addedNodes).every(node => {
+                        return node.nodeType === Node.ELEMENT_NODE && 
+                               (node.classList.contains('whackybeanz-flame-score') || 
+                                node.classList.contains('whackybeanz-flame-score-container') ||
+                                node.id === 'whackybeanz-showFlameScoresCheck' ||
+                                node.querySelector && node.querySelector('#whackybeanz-showFlameScoresCheck'));
+                    });
+                    
+                    // Check if new nodes contain equipment images
+                    const hasNewImages = Array.from(mutation.addedNodes).some(node => {
+                        return node.nodeType === Node.ELEMENT_NODE && 
+                               (node.querySelector && node.querySelector('img[src*="images/equips/"]') || 
+                                (node.tagName === 'IMG' && node.src && node.src.includes('images/equips/')));
+                    });
+                    
+                    // Only trigger if it's NOT our own flame score changes
+                    if (!isOurFlameScoreChange) {
+                        hasRelevantChanges = true;
+                    }
+                    
+                    if (hasNewImages) {
+                        hasImages = true;
+                    }
+                }
+                
+                // Check for removed nodes (table being cleared)
+                if (mutation.removedNodes.length > 0) {
+                    const hasRemovedImages = Array.from(mutation.removedNodes).some(node => {
+                        return node.nodeType === Node.ELEMENT_NODE && 
+                               (node.querySelector && node.querySelector('img[src*="images/equips/"]') || 
+                                (node.tagName === 'IMG' && node.src && node.src.includes('images/equips/')));
+                    });
+                    
+                    if (hasRemovedImages) {
+                        hasRelevantChanges = true;
+                    }
+                }
+            }
+        });
+
+        if (hasRelevantChanges) {
+            console.log('[WhackyBeanz Extension] Detected flame table changes, refreshing scores');
+            
+            const showFlameScores = localStorage.getItem('whackybeanz-show-flame-scores') === 'true';
+            if (showFlameScores) {
+                // Clear existing scores first
+                clearFlameScores();
+                
+                // Wait for new images to be added, then re-display scores
+                setTimeout(async () => {
+                    const currentImages = flameTableContainer.querySelectorAll('img[src*="images/equips/"]');
+                    if (currentImages.length > 0) {
+                        await displayFlameScores();
+                        // Apply spacing after scores are displayed
+                        setTimeout(() => {
+                            applyFlameScoreSpacing(true);
+                        }, 100);
+                    }
+                }, 1000);
+            }
+        }
+    });
+
+    observer.observe(flameTableContainer, {
+        childList: true,
+        subtree: true
+    });
+}
+
+
