@@ -2375,13 +2375,11 @@ function calculateFlameScore(itemName, statEquiv, jobType, flameSetup) {
 
         // Validate statEquiv
         if (!statEquiv || typeof statEquiv !== 'object') {
-            console.warn('[WhackyBeanz Extension] statEquiv is empty or invalid - user needs to save step 4');
             return 'SAVE_STEP_4';
         }
 
         const { priStat, secStat, values } = statEquiv;
         if (!priStat || !secStat || !values || !Array.isArray(priStat) || !Array.isArray(secStat)) {
-            console.warn('[WhackyBeanz Extension] statEquiv structure is invalid - user needs to save step 4');
             return 'SAVE_STEP_4';
         }
 
