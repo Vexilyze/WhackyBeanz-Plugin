@@ -1,6 +1,6 @@
 {
   "name": "WhackyBeanz Extension",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "manifest_version": 2,
   "description": "Extension to read/write localStorage from WhackyBeanz.",
   "permissions": ["storage", "activeTab"],
