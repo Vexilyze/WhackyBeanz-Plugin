@@ -2368,7 +2368,27 @@ function calculateFlameScore(itemName, statEquiv, jobType, flameSetup) {
                 }
             }
         }
-        
+
+        // If exact match not found and item contains "shoe", search for any shoe item in character data
+        if ((!itemFlameData || !Array.isArray(itemFlameData)) && itemName.toLowerCase().includes('shoe')) {
+            for (const [key, value] of Object.entries(flameSetup)) {
+                if (key.toLowerCase().includes('shoe') && Array.isArray(value)) {
+                    itemFlameData = value;
+                    break;
+                }
+            }
+        }
+
+        // If exact match not found and item contains "cape", search for any cape item in character data
+        if ((!itemFlameData || !Array.isArray(itemFlameData)) && itemName.toLowerCase().includes('cape')) {
+            for (const [key, value] of Object.entries(flameSetup)) {
+                if (key.toLowerCase().includes('cape') && Array.isArray(value)) {
+                    itemFlameData = value;
+                    break;
+                }
+            }
+        }
+
         if (!itemFlameData || !Array.isArray(itemFlameData)) {
             return null;
         }
